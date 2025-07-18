@@ -1,2 +1,4 @@
-print("hello")
-print(1+1)
+import numpy as np
+import pandas as pd
+import matplotlib as mp
+import torch
