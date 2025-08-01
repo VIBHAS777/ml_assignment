@@ -1,4 +1,3 @@
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,184 +6,152 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import confusion_matrix, classification_report, mean_squared_error, r2_score, mean_absolute_percentage_error
 from sklearn.linear_model import LinearRegression
 
-def evaluate_knn_metrics(X, y, k=3):
-    """
-    A1: Evaluate confusion matrix and performance metrics for kNN classification
-    Returns confusion matrices and classification reports for both training and test sets
-    """
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
-    model = KNeighborsClassifier(n_neighbors=k)
-    model.fit(X_train, y_train)
-    y_train_pred = model.predict(X_train)
-    y_test_pred = model.predict(X_test)
-    cm_train = confusion_matrix(y_train, y_train_pred)
-    cm_test = confusion_matrix(y_test, y_test_pred)
-    report_train = classification_report(y_train, y_train_pred, output_dict=True)
-    report_test = classification_report(y_test, y_test_pred, output_dict=True)
-    return cm_train, cm_test, report_train, report_test
+def knn_classification_metrics(X, y, k=3):
+    # Split data and train kNN
+    X_tr, X_ts, y_tr, y_ts = train_test_split(X, y, test_size=0.3, random_state=42)
+    clf = KNeighborsClassifier(n_neighbors=k)
+    clf.fit(X_tr, y_tr)
 
-def regression_metrics(X, y):
-    """
-    A2: Calculate MSE, RMSE, MAPE and R2 scores for regression
-    Returns regression performance metrics
-    """
+    # Predictions
+    pred_tr = clf.predict(X_tr)
+    pred_ts = clf.predict(X_ts)
+
+    # Confusion matrix and reports
+    cm_tr = confusion_matrix(y_tr, pred_tr)
+    cm_ts = confusion_matrix(y_ts, pred_ts)
+    rpt_tr = classification_report(y_tr, pred_tr, output_dict=True)
+    rpt_ts = classification_report(y_ts, pred_ts, output_dict=True)
+
+    return cm_tr, cm_ts, rpt_tr, rpt_ts
+
+def regression_scores(X, y):
+    # Fit linear regression
     model = LinearRegression()
     model.fit(X, y)
-    y_pred = model.predict(X)
-    mse = mean_squared_error(y, y_pred)
+    pred = model.predict(X)
+
+    # Metrics
+    mse = mean_squared_error(y, pred)
     rmse = np.sqrt(mse)
-    mape = mean_absolute_percentage_error(y, y_pred)
-    r2 = r2_score(y, y_pred)
+    mape = mean_absolute_percentage_error(y, pred)
+    r2 = r2_score(y, pred)
+
     return mse, rmse, mape, r2
 
-def generate_training_data():
-    """
-    A3: Generate 20 training data points with 2 features and assign classes
-    Class 0 (Blue): Points where X + Y < 10
-    Class 1 (Red): Points where X + Y >= 10
-    """
+def create_simple_dataset():
+    # Random 2D points and assign class
     np.random.seed(42)
-    X = np.random.randint(1, 11, size=(20, 2))
-    # Assign classes based on sum of features (more meaningful classification)
-    y = np.array([0 if (x[0] + x[1]) < 10 else 1 for x in X])
-    return X, y
+    data = np.random.randint(1, 11, size=(20, 2))
+    labels = np.array([0 if (pt[0] + pt[1]) < 10 else 1 for pt in data])
+    return data, labels
 
-def classify_test_grid(X_train, y_train, k=3):
-    """
-    A4: Classify test grid points using kNN classifier
-    Creates a fine grid of test points and classifies them
-    """
-    model = KNeighborsClassifier(n_neighbors=k)
-    model.fit(X_train, y_train)
-    # Create test grid from 0 to 10 with 0.1 increments
+def predict_grid(X, y, k=3):
+    # Train and predict over grid
+    clf = KNeighborsClassifier(n_neighbors=k)
+    clf.fit(X, y)
     xx, yy = np.meshgrid(np.arange(0, 10.1, 0.1), np.arange(0, 10.1, 0.1))
-    test_points = np.c_[xx.ravel(), yy.ravel()]
-    predictions = model.predict(test_points)
-    return xx, yy, predictions.reshape(xx.shape)
+    grid_pts = np.c_[xx.ravel(), yy.ravel()]
+    preds = clf.predict(grid_pts)
+    return xx, yy, preds.reshape(xx.shape)
 
-def plot_decision_boundaries(X_train, y_train, k_values):
-    """
-    A5: Plot decision boundaries for different k values
-    Shows how class boundaries change with different k values
-    """
-    for k in k_values:
-        xx, yy, zz = classify_test_grid(X_train, y_train, k)
+def draw_boundaries(X, y, k_vals):
+    # Plot boundaries for different k
+    for k in k_vals:
+        xx, yy, zz = predict_grid(X, y, k)
         plt.figure(figsize=(6, 5))
         plt.contourf(xx, yy, zz, alpha=0.3, cmap=plt.cm.coolwarm)
-        plt.scatter(X_train[:, 0], X_train[:, 1], c=y_train, cmap=plt.cm.coolwarm, edgecolor='k')
-        plt.title(f"Decision Boundary for k = {k}")
-        plt.xlabel("Feature X")
-        plt.ylabel("Feature Y")
+        plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.coolwarm, edgecolor='k')
+        plt.title(f"Decision Boundary (k = {k})")
+        plt.xlabel("X")
+        plt.ylabel("Y")
         plt.grid(True)
         plt.show()
 
-def air_quality_two_feature_classification(df, feature1, feature2, threshold_col, threshold_val):
-    """
-    A6: Perform two-feature classification on air quality data
-    Creates binary classification based on threshold value
-    """
-    data = df[[feature1, feature2, threshold_col]].dropna()
-    X = data[[feature1, feature2]].values
-    y = (data[threshold_col] > threshold_val).astype(int).values
+def classify_air_quality(df, col1, col2, target_col, threshold):
+    # Use two features and threshold to form binary classes
+    df_clean = df[[col1, col2, target_col]].dropna()
+    X = df_clean[[col1, col2]].values
+    y = (df_clean[target_col] > threshold).astype(int).values
     return X, y
 
-def tune_k_hyperparameter(X, y):
-    """
-    A7: Use GridSearchCV to find optimal k value for kNN classifier
-    Performs hyperparameter tuning using cross-validation
-    """
-    param_grid = {'n_neighbors': list(range(1, 21))}
-    model = KNeighborsClassifier()
-    grid = GridSearchCV(model, param_grid, cv=5, scoring='accuracy')
+def search_best_k(X, y):
+    # Find best k using cross-validation
+    params = {'n_neighbors': list(range(1, 21))}
+    clf = KNeighborsClassifier()
+    grid = GridSearchCV(clf, params, cv=5, scoring='accuracy')
     grid.fit(X, y)
     return grid.best_params_, grid.best_score_
 
-
 if __name__ == "__main__":
-    print("=== Lab 3 Assignment - Classification Models ===\n")
-    
-    # A1: Evaluate confusion matrix and performance metrics
-    print("A1: Evaluating kNN Classification Metrics...")
-    try:
-        air_df = pd.read_excel("AirQualityUCI.xlsx").dropna()
-        X_a1 = air_df[["C6H6(GT)", "T"]].values
-        y_a1 = (air_df["CO(GT)"] > 2.5).astype(int).values
-        cm_train, cm_test, report_train, report_test = evaluate_knn_metrics(X_a1, y_a1, k=3)
+    print("Lab 3 - Classification Models\n")
 
-        print("A1 - Confusion Matrix (Training):")
-        print(cm_train)
-        print("\nA1 - Confusion Matrix (Test):")
-        print(cm_test)
-        print("\nA1 - Classification Report (Training):")
-        print(f"Precision: {report_train['weighted avg']['precision']:.3f}")
-        print(f"Recall: {report_train['weighted avg']['recall']:.3f}")
-        print(f"F1-Score: {report_train['weighted avg']['f1-score']:.3f}")
-        print("\nA1 - Classification Report (Test):")
-        print(f"Precision: {report_test['weighted avg']['precision']:.3f}")
-        print(f"Recall: {report_test['weighted avg']['recall']:.3f}")
-        print(f"F1-Score: {report_test['weighted avg']['f1-score']:.3f}")
+    # A1
+    print("A1: kNN Metrics...")
+    try:
+        df_air = pd.read_excel("AirQualityUCI.xlsx").dropna()
+        X1 = df_air[["C6H6(GT)", "T"]].values
+        y1 = (df_air["CO(GT)"] > 2.5).astype(int).values
+        cm_tr, cm_ts, rpt_tr, rpt_ts = knn_classification_metrics(X1, y1, k=3)
+
+        print("Train Confusion Matrix:\n", cm_tr)
+        print("\nTest Confusion Matrix:\n", cm_ts)
+        print(f"\nTrain - Precision: {rpt_tr['weighted avg']['precision']:.3f}, Recall: {rpt_tr['weighted avg']['recall']:.3f}, F1: {rpt_tr['weighted avg']['f1-score']:.3f}")
+        print(f"Test - Precision: {rpt_ts['weighted avg']['precision']:.3f}, Recall: {rpt_ts['weighted avg']['recall']:.3f}, F1: {rpt_ts['weighted avg']['f1-score']:.3f}")
     except Exception as e:
         print(f"Error in A1: {e}")
 
-    # A2: Calculate regression metrics
-    print("\nA2: Calculating Regression Metrics...")
+    # A2
+    print("\nA2: Regression Evaluation...")
     try:
-        lab_df = pd.read_excel("Lab_Session_Data.xlsx")
-        lab_df = lab_df[["Candies (#)", "Mangoes (Kg)", "Milk Packets (#)", "Payment (Rs)"]].dropna()
-        X_a2 = lab_df[["Candies (#)", "Mangoes (Kg)", "Milk Packets (#)"]]
-        y_a2 = lab_df["Payment (Rs)"]
-        mse, rmse, mape, r2 = regression_metrics(X_a2, y_a2)
+        df_lab = pd.read_excel("Lab_Session_Data.xlsx")
+        df_lab = df_lab[["Candies (#)", "Mangoes (Kg)", "Milk Packets (#)", "Payment (Rs)"]].dropna()
+        X2 = df_lab[["Candies (#)", "Mangoes (Kg)", "Milk Packets (#)"]]
+        y2 = df_lab["Payment (Rs)"]
+        mse, rmse, mape, r2 = regression_scores(X2, y2)
 
-        print(f"A2 - Mean Squared Error (MSE): {mse:.2f}")
-        print(f"A2 - Root Mean Squared Error (RMSE): {rmse:.2f}")
-        print(f"A2 - Mean Absolute Percentage Error (MAPE): {mape:.3f}")
-        print(f"A2 - R² Score: {r2:.3f}")
+        print(f"MSE: {mse:.2f}, RMSE: {rmse:.2f}, MAPE: {mape:.3f}, R²: {r2:.3f}")
     except Exception as e:
         print(f"Error in A2: {e}")
 
-    # A3: Generate and plot training data
-    print("\nA3: Generating Training Data...")
-    X_train_a3, y_train_a3 = generate_training_data()
+    # A3
+    print("\nA3: Plotting Sample Dataset...")
+    X3, y3 = create_simple_dataset()
     plt.figure(figsize=(6, 5))
-    plt.scatter(X_train_a3[:, 0], X_train_a3[:, 1], c=y_train_a3, cmap=plt.cm.coolwarm, edgecolor='k')
-    plt.title("A3 - Training Data Scatter Plot (Blue: Class 0, Red: Class 1)")
-    plt.xlabel("Feature X")
-    plt.ylabel("Feature Y")
+    plt.scatter(X3[:, 0], X3[:, 1], c=y3, cmap=plt.cm.coolwarm, edgecolor='k')
+    plt.title("Training Data (0: Blue, 1: Red)")
+    plt.xlabel("X")
+    plt.ylabel("Y")
     plt.grid(True)
     plt.show()
 
-    # A4: Classify test grid with k=3
-    print("\nA4: Classifying Test Grid with k=3...")
-    xx, yy, zz = classify_test_grid(X_train_a3, y_train_a3, k=3)
+    # A4
+    print("\nA4: Grid Prediction (k=3)...")
+    xx, yy, zz = predict_grid(X3, y3, k=3)
     plt.figure(figsize=(6, 5))
     plt.contourf(xx, yy, zz, alpha=0.3, cmap=plt.cm.coolwarm)
-    plt.scatter(X_train_a3[:, 0], X_train_a3[:, 1], c=y_train_a3, cmap=plt.cm.coolwarm, edgecolor='k')
-    plt.title("A4 - Test Data Classification with k=3")
-    plt.xlabel("Feature X")
-    plt.ylabel("Feature Y")
+    plt.scatter(X3[:, 0], X3[:, 1], c=y3, cmap=plt.cm.coolwarm, edgecolor='k')
+    plt.title("Test Grid Classification")
+    plt.xlabel("X")
+    plt.ylabel("Y")
     plt.grid(True)
     plt.show()
 
-    # A5: Plot decision boundaries for different k values
-    print("\nA5: Plotting Decision Boundaries for Different k Values...")
-    plot_decision_boundaries(X_train_a3, y_train_a3, k_values=[1, 3, 5, 7, 15])
+    # A5
+    print("\nA5: Plotting Boundaries...")
+    draw_boundaries(X3, y3, k_vals=[1, 3, 5, 7, 15])
 
-    # A6: Apply to project data (Air Quality)
-    print("\nA6: Applying to Project Data (Air Quality)...")
+    # A6
+    print("\nA6: Air Quality Classification...")
     try:
-        X_a6, y_a6 = air_quality_two_feature_classification(air_df, "PT08.S1(CO)", "T", "CO(GT)", 2.5)
-        # Use first 20 points for visualization
-        X_train_a6, y_train_a6 = X_a6[:20], y_a6[:20]
-        plot_decision_boundaries(X_train_a6, y_train_a6, k_values=[1, 3, 5])
+        X6, y6 = classify_air_quality(df_air, "PT08.S1(CO)", "T", "CO(GT)", 2.5)
+        draw_boundaries(X6[:20], y6[:20], k_vals=[1, 3, 5])
     except Exception as e:
         print(f"Error in A6: {e}")
 
-    # A7: Hyperparameter tuning
-    print("\nA7: Performing Hyperparameter Tuning...")
+    # A7
+    print("\nA7: Best k with Grid Search...")
     try:
-        best_k, best_score = tune_k_hyperparameter(X_a1, y_a1)
-        print(f"A7 - Best k value: {best_k['n_neighbors']}")
-        print(f"A7 - Best cross-validated accuracy: {best_score:.3f}")
+        best_params, best_acc = search_best_k(X1, y1)
+        print(f"Best k: {best_params['n_neighbors']}, Accuracy: {best_acc:.3f}")
     except Exception as e:
         print(f"Error in A7: {e}")
-
